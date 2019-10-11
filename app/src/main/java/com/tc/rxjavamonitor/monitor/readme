@@ -1,0 +1,23 @@
+关于custominterface包：自定义IO scheduler或者scheduler所使用的线程池时，需要关注这个包下面的接口和抽象类
+customScheduler包：已经自定义好的scheduler相关以及提供的基础线程池，可以参考这里的实现，去自定义应用自己的线程池管理的scheduler
+
+线程监控以及替换RxJava的scheduler的管理类介绍
+/*
+ * description  自定义IO线程监控管理类，配置监视器的基本参数，开启各种debug方法等
+ * 监控要求：
+ * 1、自定义的scheduler需要继承AbstractScheduler
+ * 2、参考或者直接使用ExecutorSchedulerWorker创建任务
+ * 3、如果是要替换原始RxJava的IO线程池，需要额外实现IThreadPool，创建自己的线程池类
+ * 4、IThreadPool的实现类里，线程池的构造使用MonitorThreadPoolExecutor类，便于监控
+ * 5、编写新的scheduler参考自定义的IOScheduler类
+ * 6、如果需要自定义SchedulerWork，需要实现Runnable, IBaseWork 接口，继承Scheduler.Worker
+ * 7、默认提供IOThreadPool和LimitCoreThreadPool两种基础线程池，还有自定义的IOScheduler（用来替换原本RxJava的IOScheduler）
+ * 8、IOTaskPriorityType优先级类型，RxJava observable在subscribeOn时可以选择传入
+ * 9、AbstractRejectedExecutionHandler可以做一些拒绝任务的策略动作
+ *
+ * @see ExecutorSchedulerWorker
+ * 使用方式：
+ * 1、所有public方法提供配置参数
+ * 2、在基础参数配置完后调用此方法startMonitor
+ * modify by
+ */
