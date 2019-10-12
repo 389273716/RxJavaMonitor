@@ -1,75 +1,600 @@
 package com.tc.rxjavamonitor;
 
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
 
+import com.tc.rxjavamonitor.monitor.AppSchedulers;
 import com.tc.rxjavamonitor.monitor.IOMonitorManager;
-import com.tc.rxjavamonitor.monitor.customScheduler.LimitCoreThreadPool;
+import com.tc.rxjavamonitor.monitor.custominterface.IOTaskPriorityType;
+import com.tc.rxjavamonitor.monitor.log.LogUtil;
+import com.tc.rxjavamonitor.monitor.log.MonitorLog;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Locale;
+import java.util.Random;
+
+import rx.Observable;
+import rx.Subscriber;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Func1;
+import rx.schedulers.Schedulers;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
+
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        Button btnTest = (Button) findViewById(R.id.btn_test_start);
+
+        btnTest.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+//                testMonitorLog(2);
+//                testNoStackInfo();
+//                testPriority();
+                test(1000);
+//                IOMonitorManager.getInstance().executeTaskOnIOThread(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        LogUtil.i("test execute runnable------------->");
+//                    }
+//                },IOTaskPriorityType.UPDATE_VIEW_TASK);
+            }
+        });
 
 
-/*
- * description  自定义IO线程监控管理类，配置监视器的基本参数，开启各种debug方法等
- * 监控要求：
- * 1、自定义的scheduler需要继承AbstractScheduler
- * 2、参考或者直接使用ExecutorSchedulerWorker创建任务
- * 3、如果是要替换原始RxJava的IO线程池，需要额外实现IThreadPool，创建自己的线程池类
- * 4、IThreadPool的实现类里，线程池的构造使用MonitorThreadPoolExecutor类，便于监控
- * 5、编写新的scheduler参考自定义的IOScheduler类
- * 6、如果需要自定义SchedulerWork，需要实现Runnable, IBaseWork 接口，继承Scheduler.Worker
- * 7、默认提供IOThreadPool和LimitCoreThreadPool两种基础线程池，还有自定义的IOScheduler（用来替换原本RxJava的IOScheduler）
- * 8、IOTaskPriorityType优先级类型，RxJava observable在subscribeOn时可以选择传入
- * 9、AbstractRejectedExecutionHandler可以做一些拒绝任务的策略动作
- *
- * @see ExecutorSchedulerWorker
- * 使用方式：
- * 1、所有public方法提供配置参数
- * 2、在基础参数配置完后调用此方法startMonitor
- * modify by
- */
+    }
 
-
-        //必须在应用第一次使用observable之前设置，这里会替换rxjava的默认IO scheduler。
-        // 如果只调用setReplaceIOScheduler方法，则替换时用基础库里自带的自定义IO scheduler
-        //LimitCoreThreadPool不是基础库默认的IO scheduler实现,一般都是替换线程池实现，不直接修改自定义的IO scheduler
-        IOMonitorManager.getInstance().setReplaceIOScheduler(true)
-                .setIOThreadPool(LimitCoreThreadPool.getInstance()
-                        .build(2, BuildConfig.DEBUG ? 35 : 35, 15, 1000, false));
-
-        List<String> targetList = new ArrayList<>(2);
-        targetList.add("com.xtc");
-        //配置基本的监视器参数，下面参数可以在IOMonitorManager的startMonitor后修改
-        IOMonitorManager.getInstance().setCostTimeLimit(0)
-                //超出这个活跃线程数就输出到日志
-                .setThreadActiveCountLimit(30)
-                //打印当前被监控的线程池信息
-                .setLogThreadPoolInfo(BuildConfig.DEBUG)
-                //打印其它非RxJava的IO线程信息
-                .setLogOtherThreadInfo(true)
-                .setPackageName(getPackageName())
-//                        .setTargetNameList(list)
-                //监控器轮询时间，每隔这么久打印一些线程信息
-                .setMonitorIntervalTime(10)
-                //是否输出更多日志信息，看方法注释
-                .setLogMoreInfo(BuildConfig.DEBUG)
-                //监控器是否启用
-                .setMonitorEnable(BuildConfig.DEBUG)
-                //一般在调试时才开启，监控子线程重复切换线程
-                .setLogRepeatChangeThread(false)
-                //打印所有任务执行情况，适合打桩分析当前时间段有哪些任务触发
-                .setLogAllTaskRunningInfo(true)
-                //是否过滤堆栈
-                .setFilterStack(!BuildConfig.DEBUG);
+    private void testMonitorLog(final int count) {
+//        MonitorLog.thread("---------thread_info message");
+//        MonitorLog.trace("---------trace_info message");
+//        MonitorLog.trace("---------trace_info message33333");
+//        MonitorLog.thread("---------thread_info message222");
+        Observable.create(new Observable.OnSubscribe<Integer>() {
+            @Override
+            public void call(Subscriber<? super Integer> subscriber) {
+                Random random = new Random();
+                int time;
+                for (int j = 0; j < count; j++) {
+                    time = random.nextInt(1000);
+                    StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+                    MonitorLog.thread(TAG, MonitorLog.getSplitString(
+                            "Observable call test thread:", j, time, IOMonitorManager.getStackInfo(stackTrace, true)));
+                }
+                subscriber.onNext(1);
+                subscriber.onCompleted();
+                LogUtil.d("app_custom_io_scheduler", "thread name: " + Thread.currentThread().getName());
+            }
+        })
+//                .subscribeOn(Schedulers.io())
+                .subscribe();
     }
 
 
+    private void testNoStackInfo() {
+        //测试无法打印任务所在业务代码的堆栈的问题，这里是例子
+        Observable.create(new Observable.OnSubscribe<Integer>() {
+            @Override
+            public void call(Subscriber<? super Integer> subscriber) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onNext(1);
+                subscriber.onCompleted();
+                LogUtil.d("app_custom_io_scheduler", "thread name: " + Thread.currentThread().getName());
+            }
+        })
+//                .observeOn(Schedulers.io())
+                .map(new Func1<Integer, Object>() {
+                    @Override
+                    public Object call(Integer integer) {
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            LogUtil.e(TAG, e);
+                        }
+                        return null;
+                    }
+                })
+//                .flatMap(new Func1<Integer, Observable<Integer>>() {
+//                    @Override
+//                    public Observable<Integer> call(Integer integer) {
+//                        return Observable.create(new Observable.OnSubscribe<Integer>() {
+//                            @Override
+//                            public void call(Subscriber<? super Integer> subscriber) {
+//                                try {
+//                                    Thread.sleep(3000);
+//                                } catch (InterruptedException e) {
+//                                    e.printStackTrace();
+//                                }
+//                                subscriber.onNext(1);
+//                                subscriber.onCompleted();
+//                                LogUtil.d("app_custom_io_scheduler", "thread name inner: " + Thread.currentThread()
+//                                        .getName());
+//                            }
+//                        }).subscribeOn(Schedulers.io());
+//                    }
+//                })
+                .subscribeOn(Schedulers.io())
+                .subscribe();
+    }
+
+    private void testRXJavaThread(int num) {
+        for (int i = 0; i < num; i++) {
+            final int finalI = i;
+            Observable.create(new Observable.OnSubscribe<Object>() {
+                @Override
+                public void call(Subscriber<? super Object> subscriber) {
+                    try {
+                        Random random = new Random();
+                        int time = random.nextInt(1000);
+//                    for (int j = 0; j < 10001000; j++) {
+//                        time += j;
+//                    }
+                        LogUtil.d(TAG, String.format(Locale.ENGLISH, "Observable call " +
+                                "test thread: %d  sleep time: %d", finalI, time));
+                        Thread.sleep(time + 200);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    subscriber.onCompleted();
+                }
+            })
+                    .subscribeOn(Schedulers.io())
+                    .subscribe(new Subscriber<Object>() {
+                        @Override
+                        public void onCompleted() {
+                            LogUtil.d(TAG, String.format(Locale.ENGLISH,
+                                    "testRXJavaThread onCompleted: %d", finalI));
+
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+//                            LogUtil.e(TAG, "testRXJavaThread onError: ", e);
+                            LogUtil.d(TAG, String.format("onError: %s", e.getMessage()));
+                        }
+
+                        @Override
+                        public void onNext(Object o) {
+
+                        }
+                    });
+
+        }
+
+    }
+
+    private void test(final int count) {
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+
+                testRXJavaThread(count);
+            }
+        }).subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+                        LogUtil.d(TAG, "test onCompleted: ");
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        LogUtil.e(TAG, String.format("testRXJavaThread onError: %s", e.getMessage()));
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+                    }
+                });
+
+    }
+
+
+    private void testPriority() {
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.UPDATE_VIEW_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.UPDATE_VIEW_TASK + "  sleep time: " + time);
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.UPDATE_VIEW_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.CORE_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.CORE_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.CORE_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.UPDATE_VIEW_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.UPDATE_VIEW_TASK + "  sleep time: " + time);
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.UPDATE_VIEW_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NETWORK_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.NETWORK_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.NORMAL_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.NORMAL_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.NORMAL_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.UPDATE_VIEW_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.UPDATE_VIEW_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.UPDATE_VIEW_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NORMAL_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.NETWORK_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.NETWORK_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.DATABASE_IO_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.DATABASE_IO_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.DATABASE_IO_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.LOAD_DATA_FOR_VIEW_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.LOAD_DATA_FOR_VIEW_TASK + "  sleep time: " +
+                            time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.LOAD_DATA_FOR_VIEW_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+
+        LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.LOW_PRIORITY_TASK);
+        Observable.create(new Observable.OnSubscribe<Object>() {
+            @Override
+            public void call(Subscriber<? super Object> subscriber) {
+                try {
+                    Random random = new Random();
+                    int time = random.nextInt(1000);
+                    LogUtil.d(TAG, "testPriority- " + IOTaskPriorityType.LOW_PRIORITY_TASK + "  sleep time: " + time);
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                subscriber.onCompleted();
+            }
+        })
+                .subscribeOn(AppSchedulers.io("test inner task test", IOTaskPriorityType.LOW_PRIORITY_TASK))
+                .subscribe(new Subscriber<Object>() {
+                    @Override
+                    public void onCompleted() {
+
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+
+                    }
+
+                    @Override
+                    public void onNext(Object o) {
+
+                    }
+                });
+    }
 }
+

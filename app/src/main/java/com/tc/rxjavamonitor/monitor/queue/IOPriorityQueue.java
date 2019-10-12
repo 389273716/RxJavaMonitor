@@ -1,10 +1,13 @@
 package com.tc.rxjavamonitor.monitor.queue;
 
 
+import com.tc.rxjavamonitor.monitor.IOMonitorConstants;
 import com.tc.rxjavamonitor.monitor.custominterface.IBaseWork;
 import com.tc.rxjavamonitor.monitor.custominterface.IOTaskPriorityType;
+import com.tc.rxjavamonitor.monitor.log.MonitorLog;
 
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -64,8 +67,8 @@ public class IOPriorityQueue extends PriorityBlockingQueue {
         int maximumPoolSize = mThreadPoolExecutor.getMaximumPoolSize();
         if (poolSize < maximumPoolSize) {
             iBaseWork.setNeedCreateNewThread(true);
-//            MonitorLog.logCatD(IOMonitorConstants.MONITOR_LOG_TAG, String.format(Locale.ENGLISH, "need create new " +
-//                    "thread.  poolSize:%d ,maximumPoolSize:%d  iBaseWork:%s", poolSize, maximumPoolSize, iBaseWork));
+            MonitorLog.logCatD(IOMonitorConstants.MONITOR_LOG_TAG, String.format(Locale.ENGLISH, "need create new " +
+                    "thread.  poolSize:%d ,maximumPoolSize:%d  iBaseWork:%s", poolSize, maximumPoolSize, iBaseWork));
             return true;
         }
 
@@ -76,8 +79,8 @@ public class IOPriorityQueue extends PriorityBlockingQueue {
         //只丢弃允许丢弃的任务
         if (mQueueSize > 0 && mQueueSize < this.size()) {
             //当前队列大小大于允许的容量，丢弃任务优先级低的任务
-//            MonitorLog.logCatE(IOMonitorConstants.MONITOR_LOG_TAG, String.format(Locale.ENGLISH, "remove old task:%s",
-//                    iBaseWork));
+            MonitorLog.logCatE(IOMonitorConstants.MONITOR_LOG_TAG, String.format(Locale.ENGLISH, "remove old task:%s",
+                    iBaseWork));
             return true;
         }
         return false;

@@ -7,6 +7,7 @@ import com.tc.rxjavamonitor.monitor.IOMonitorConstants;
 import com.tc.rxjavamonitor.monitor.IOMonitorManager;
 import com.tc.rxjavamonitor.monitor.custominterface.IBaseWork;
 import com.tc.rxjavamonitor.monitor.custominterface.IOTaskPriorityType;
+import com.tc.rxjavamonitor.monitor.log.MonitorLog;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
@@ -76,8 +77,8 @@ public class ExecutorSchedulerWorker extends Scheduler.Worker implements Runnabl
                 if (needCreateNewThread || iBaseWork.getPriority() >= IOTaskPriorityType
                         .DISCARD_TASK_VALUE) {
                     //如果不是丢弃型任务或因为并发导致创建新线程失败而无法提交的任务，这里容错处理，继续添加到处理队列里，防止并发出错
-//                    MonitorLog.logCatW(IOMonitorConstants.MONITOR_LOG_TAG, "ExecutorSchedulerWorker execute this task" +
-//                            " again:" + taskName + "  needCreateNewThread:" + needCreateNewThread);
+                    MonitorLog.logCatW(IOMonitorConstants.MONITOR_LOG_TAG, "ExecutorSchedulerWorker execute this task" +
+                            " again:" + taskName + "  needCreateNewThread:" + needCreateNewThread);
                     executor.execute(this);
                 } else {
                     // cleanup if rejected

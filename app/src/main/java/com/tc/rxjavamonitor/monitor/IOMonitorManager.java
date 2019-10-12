@@ -10,6 +10,8 @@ import com.tc.rxjavamonitor.monitor.custominterface.AbstractScheduler;
 import com.tc.rxjavamonitor.monitor.custominterface.IORunnableTask;
 import com.tc.rxjavamonitor.monitor.custominterface.IOTaskPriorityType;
 import com.tc.rxjavamonitor.monitor.custominterface.IThreadPool;
+import com.tc.rxjavamonitor.monitor.log.MonitorConstants;
+import com.tc.rxjavamonitor.monitor.log.MonitorLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -139,14 +141,14 @@ public class IOMonitorManager {
                 .subscribe(new Subscriber<Long>() {
                     @Override
                     public void onCompleted() {
-//                        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString("monitor " +
-//                                "interval stop,onCompleted"));
+                        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString("monitor " +
+                                "interval stop,onCompleted"));
                     }
 
                     @Override
                     public void onError(Throwable e) {
-//                        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(" onError: " +
-//                                "%s", e.getMessage()));
+                        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(" onError: " +
+                                "%s", e.getMessage()));
                     }
 
                     @Override
@@ -518,8 +520,8 @@ public class IOMonitorManager {
         if (isStarting != null && isStarting) {
             return;
         }
-//        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(IOMonitorConstants
-//                .PILING_MONITOR, tag, "piling start"));
+        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(IOMonitorConstants
+                .PILING_MONITOR, tag, "piling start"));
         mPilingMap.put(tag, true);
     }
 
@@ -534,8 +536,8 @@ public class IOMonitorManager {
         }
         Boolean isStarting = mPilingMap.get(tag);
         if (isStarting != null && isStarting) {
-//            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(IOMonitorConstants
-//                    .PILING_MONITOR, tag, "piling end"));
+            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(IOMonitorConstants
+                    .PILING_MONITOR, tag, "piling end"));
             mPilingMap.put(tag, false);
         }
     }
@@ -558,8 +560,8 @@ public class IOMonitorManager {
 
             @Override
             public void onError(Throwable e) {
-//                MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(e.getMessage()));
-//                endPiling(tag);
+                MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(e.getMessage()));
+                endPiling(tag);
             }
 
             @Override
@@ -798,8 +800,8 @@ public class IOMonitorManager {
         try {
             iThreadPool.executeTask(ioRunnableTask);
         } catch (RejectedExecutionException e) {
-//            MonitorLog.logCatW(IOMonitorConstants.MONITOR_LOG_TAG, "IORunnableTask retry execute this task:" +
-//                    ioRunnableTask);
+            MonitorLog.logCatW(IOMonitorConstants.MONITOR_LOG_TAG, "IORunnableTask retry execute this task:" +
+                    ioRunnableTask);
             //目前非RxJava方式使用executor，在遇到拒绝时，不执行丢弃策略。二次提交会直接入队
             iThreadPool.executeTask(ioRunnableTask);
         }

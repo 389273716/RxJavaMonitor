@@ -11,6 +11,8 @@ import com.tc.rxjavamonitor.monitor.custominterface.CustomThread;
 import com.tc.rxjavamonitor.monitor.custominterface.IBaseWork;
 import com.tc.rxjavamonitor.monitor.custominterface.IThreadPool;
 import com.tc.rxjavamonitor.monitor.custominterface.MonitorThreadPoolExecutor;
+import com.tc.rxjavamonitor.monitor.log.MonitorConstants;
+import com.tc.rxjavamonitor.monitor.log.MonitorLog;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,7 +98,7 @@ public class TwoThreadPool implements IThreadPool {
      */
     public TwoThreadPool build(int defaultKeepAliveTime, boolean allowCoreThreadTimeOut,
                                int defaultMainIOThreadPoolCoreSize, int defaultMainIOThreadPoolMaxPoolSize, boolean
-                                      isAllowNoLimitQueueOnDefaultStandbyPool, int defaultStandbyIOThreadPoolCoreSize,
+                                       isAllowNoLimitQueueOnDefaultStandbyPool, int defaultStandbyIOThreadPoolCoreSize,
                                int defaultStandbyIOThreadPoolMaxPoolSize, int defaultStandbyIOThreadPoolQueueSize) {
         mIOMonitorManager = IOMonitorManager.getInstance();
         mThreadGroup = new ThreadGroup("app_io_thread_group");
@@ -168,8 +170,8 @@ public class TwoThreadPool implements IThreadPool {
                     taskName = schedulerWorker.getTaskName();
                 }
                 if (mIOMonitorManager.isLogMoreInfo()) {
-//                    MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(
-//                            "task peak:this task move to standby pool :", taskName));
+                    MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(
+                            "task peak:this task move to standby pool :", taskName));
                 }
                 //可以去启用备用线程池,继续承担主核心线程池的任务
                 mStandbyThreadPoolExecutor.execute(r);
@@ -190,9 +192,8 @@ public class TwoThreadPool implements IThreadPool {
 
     private void executeCacheTask() {
         if (getMainIOThreadPoolExecutor().getMaximumPoolSize() - getMainIOThreadPoolExecutor().getActiveCount() < 2) {
-//            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, "getMainIOThreadPoolExecutor().getMaximumPoolSize
-// () - " +
-//                    "getMainIOThreadPoolExecutor().getPoolSize() < 2");
+            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, "getMainIOThreadPoolExecutor().getMaximumPoolSize "
+                    + "() - getMainIOThreadPoolExecutor().getPoolSize() < 2 ");
             return;
         }
         if (mCacheTaskRunnableQueue.size() <= 1) {
@@ -207,14 +208,14 @@ public class TwoThreadPool implements IThreadPool {
                 return;
             }
         } catch (Exception e) {
-//            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString("task " +
-//                    "peak:executeCacheTask:", e.getMessage()));
+            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString("task " +
+                    "peak:executeCacheTask:", e.getMessage()));
             return;
         }
         boolean contains = getMainIOThreadPoolExecutor().getQueue().contains(r);
         if (contains) {
-//            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString("task peak:this task was" +
-//                    " doing."));
+            MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString("task peak:this task was " +
+                    "" + "doing."));
             return;
         }
         getMainIOThreadPoolExecutor().execute(r);
@@ -225,8 +226,8 @@ public class TwoThreadPool implements IThreadPool {
             taskName = schedulerWorker.getTaskName();
         }
 
-//        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(" task peak,this task " +
-//                "start execute from cache task queue:", taskName, " count:", count));
+        MonitorLog.thread(IOMonitorConstants.MONITOR_LOG_TAG, MonitorLog.getSplitString(" task peak,this task " +
+                "start execute from cache task queue:", taskName, " count:", count));
     }
 
 
@@ -285,9 +286,8 @@ public class TwoThreadPool implements IThreadPool {
 
     @Override
     public String getThreadPoolInfoForLog() {
-        return "";
-//        return String.format(Locale.ENGLISH, "main-io-thread-pool: %s%s standby thread pool:%s ",
-//                mMainThreadPoolExecutor, MonitorConstants.PLACEHOLDER_NEW_LINE, mStandbyThreadPoolExecutor);
+        return String.format(Locale.ENGLISH, "main-io-thread-pool: %s%s standby thread pool:%s ",
+                mMainThreadPoolExecutor, MonitorConstants.PLACEHOLDER_NEW_LINE, mStandbyThreadPoolExecutor);
     }
 
     @Override
